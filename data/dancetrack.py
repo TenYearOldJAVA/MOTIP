@@ -39,6 +39,12 @@ class DanceTrack(OneDataset):
             if os.path.isdir(os.path.join(split_dir, n))
             and os.path.isdir(os.path.join(split_dir, n, "img1"))
         ]
+        # 训练/验证需要标注：只保留有 gt/gt.txt 的序列（test 集官方不公开 gt，会没有）
+        if self.load_annotation:
+            names = [
+                n for n in names
+                if os.path.isfile(os.path.join(split_dir, n, "gt", "gt.txt"))
+            ]
         return names
 
     def _get_sequence_infos(self):
