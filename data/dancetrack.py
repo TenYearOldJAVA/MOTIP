@@ -1,6 +1,7 @@
 # Copyright (c) Ruopeng Gao. All Rights Reserved.
 
 import os
+import glob
 import torch
 from collections import defaultdict
 from configparser import ConfigParser
@@ -32,19 +33,54 @@ class DanceTrack(OneDataset):
         return
 
     def _get_sequence_names(self):
-        return os.listdir(os.path.join(self.data_dir, self.split))
+        split_dir = os.path.join(self.data_dir, self.split)
+        names = [
+            n for n in sorted(os.listdir(split_dir))
+            if os.path.isdir(os.path.join(split_dir, n))
+            and os.path.isdir(os.path.join(split_dir, n, "img1"))
+        ]
+        return names
 
     def _get_sequence_infos(self):
         sequence_names = self._get_sequence_names()
         sequence_infos = dict()
         for sequence_name in sequence_names:
             sequence_dir = self._get_sequence_dir(self.data_dir, self.split, sequence_name)
-            ini = ConfigParser()
-            ini.read(os.path.join(sequence_dir, "seqinfo.ini"))
+            ini_path = os.path.join(sequence_dir, "seqinfo.ini")
+            width, height, length = None, None, None
+            if os.path.isfile(ini_path):
+                ini = ConfigParser()
+                ini.read(ini_path, encoding="utf-8")
+                for sec in ("Sequence", "sequence"):
+                    if ini.has_section(sec):
+                        try:
+                            width = int(ini.get(sec, "imWidth", fallback=ini.get(sec, "width", fallback=None)))
+                            height = int(ini.get(sec, "imHeight", fallback=ini.get(sec, "height", fallback=None)))
+                            length = int(ini.get(sec, "seqLength", fallback=ini.get(sec, "length", fallback=None)))
+                        except (TypeError, ValueError):
+                            pass
+                        break
+            if length is None:
+                img_dir = os.path.join(sequence_dir, "img1")
+                if os.path.isdir(img_dir):
+                    length = len(glob.glob(os.path.join(img_dir, "*.jpg")))
+                if length is None:
+                    length = 0
+            if width is None or height is None:
+                first_img = os.path.join(sequence_dir, "img1", "00000001.jpg")
+                if os.path.isfile(first_img):
+                    try:
+                        from PIL import Image
+                        with Image.open(first_img) as im:
+                            width, height = im.size
+                    except Exception:
+                        width, height = 1920, 1080
+                else:
+                    width, height = 1920, 1080
             sequence_infos[sequence_name] = {
-                "width": int(ini["Sequence"]["imWidth"]),
-                "height": int(ini["Sequence"]["imHeight"]),
-                "length": int(ini["Sequence"]["seqLength"]),
+                "width": width,
+                "height": height,
+                "length": length,
                 "is_static": False,
             }
         return sequence_infos
