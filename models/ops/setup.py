@@ -45,12 +45,6 @@ def get_extensions():
             "-D__CUDA_NO_HALF_CONVERSIONS__",
             "-D__CUDA_NO_HALF2_OPERATORS__",
             "-allow-unsupported-compiler",  # for GCC > 12 with CUDA 12.x
-            # glibc 2.38+ / newer system headers use _Float* (C23); nvcc host compiler doesn't support them
-            "-D_Float32=float",
-            "-D_Float64=double",
-            "-D_Float128=__float128",
-            "-D_Float32x=double",
-            "-D_Float64x=long double",
         ]
     else:
         raise NotImplementedError('Cuda is not available')
